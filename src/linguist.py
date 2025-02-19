@@ -24,6 +24,11 @@ class Linguist:
     def init(self, debug: bool=False):
         if not os.path.exists(self.archive):
             os.makedirs(self.archive)
+        # Set permissions on Windows
+        try:
+            os.chmod(self.archive, 0o777)
+        except Exception as e:
+            print(f"Warning: Could not set archive permissions: {e}")
         self.debug = debug
         self.tts = tts(debug=debug)
         self.tts.load()
@@ -70,34 +75,52 @@ class Linguist:
         try:
             if not tag:
                 tag = input("Name the recording (ENTER for datetime): ") or self.stamp()
-            if not tag.endswith(".wav"):
-                name = os.path.join(self.archive, tag + ".wav")
-            else:
-                name = os.path.join(self.archive, tag)
+            
+            # Ensure proper Windows path handling
+            name = os.path.join(self.archive, f"{tag}.wav" if not tag.endswith(".wav") else tag)
+            name = os.path.normpath(name)  # Normalize path separators
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(name), exist_ok=True)
+            
             self.mic.record(output_file=name)
+            return name
         except KeyboardInterrupt:
             print("Recording interrupted. Exiting...")
-        return name
+            return ""
+        except Exception as e:
+            print(f"Error during recording: {e}")
+            return ""
 
     def transcribe(self, file: str, show_text: bool, tag: str=None) -> str:
         """Transcribe recorded audio to text."""
         try:
-            if not os.path.exists(file):
-                raise FileNotFoundError(f"Audio file not found: {file}")
-            print("📝 Transcribing audio... Press Ctrl+C to stop. 🔊")
-            result = self.whisper_model.transcribe(file)
+            file_path = os.path.abspath(file)
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Audio file not found: {file_path}")
+                
+            print(f"📝 Transcribing audio from {file_path}... Press Ctrl+C to stop. 🔊")
+            result = self.whisper_model.transcribe(file_path)
             text = result["text"]
+            
             if text:
                 print(f"\n📜 Transcription successful ✅")
-            if show_text and text:
-                print(f"\n❝{text} ❞\n")
+                if show_text:
+                    print(f"\n❝{text} ❞\n")
+                    
             if tag:
                 if not tag.endswith(".txt"):
                     tag += ".txt"
-                with open(os.path.join(self.archive, tag), 'w') as f:
+                output_path = os.path.join(self.archive, tag)
+                with open(output_path, 'w', encoding='utf-8') as f:
                     f.write(text)
-                print(f"📂 Transcription saved to: {tag} ✅\n")
+                print(f"📂 Transcription saved to: {output_path} ✅\n")
+                
             return text
+            
+        except FileNotFoundError as e:
+            print(f"File error: {e}")
+            return ""
         except KeyboardInterrupt:
             print("Transcription interrupted. Exiting...")
             return ""
