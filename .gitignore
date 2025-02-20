@@ -138,7 +138,7 @@ celerybeat.pid
 
 # Environments
 .env
-.venv
+.venv-*
 env/
 venv/
 ENV/
@@ -178,3 +178,44 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv-*/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project specific
+output*.wav
+*.pth
+*.onnx
+voices/
+voices/*.pt
+voices/**/*.pt
+config.json

@@ -1,15 +1,13 @@
 import argparse
-from linguist import Linguist
+from src.linguist import Linguist
 import logging
 
 def main():
     # Debug command
     parser = argparse.ArgumentParser(description="CLI for TTS and STT using Linguist")
     # Configuration
-    parser.add_argument("--use_gpu", action="store_true", help="Flag to use GPU for TTS")
     parser.add_argument("--output_file", type=str, default="output.wav", help="Output file for TTS")
     parser.add_argument("--archive", type=str, default="archive", help="Archive directory for TTS")
-    parser.add_argument("--coqui_model", type=str, default="tts_models/multilingual/multi-dataset/your_tts", help="Model name for Coqui-AI TTS")
     parser.add_argument("--whisper_model", type=str, default="base", help="Whisper model for STT")
     parser.add_argument("--debug", action="store_true", help="Toggle debugging mode")
     
@@ -29,9 +27,12 @@ def main():
 
     # Transcribe command
     transcribe_parser = subparsers.add_parser("transcribe", help="Transcribe audio file to text")
-    transcribe_parser.add_argument("--file_path", type=str, required=True, help="Path to the audio file to transcribe")
+    transcribe_parser.add_argument("--path", type=str, required=True, help="Path to the audio file to transcribe")
     transcribe_parser.add_argument("--print", action="store_true", default=True, help="Flag to print the transcribed text")
     transcribe_parser.add_argument("--tag", type=str, help="Tag the transcribed audio file")
+
+    # Archive command
+    archive_parser = subparsers.add_parser("list", help="List all recorded audio samples")
 
     # Help command
     help_parser = subparsers.add_parser("help", help="Show help message")
@@ -39,13 +40,11 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command in ["speak", "listen", "transcribe"]:
+    if args.command in ["speak", "listen", "transcribe", "list"]:
         # Initialize Linguist with the provided arguments
         linguist = Linguist(
-            use_gpu=args.use_gpu,
             output_file=args.output_file,
             archive=args.archive,
-            coqui_model=args.coqui_model,
             whisper_model=args.whisper_model
         )
 
@@ -54,17 +53,15 @@ def main():
         # Handle commands
         if args.command == "speak":
             # Set language and speaker if provided
-            if args.language:
-                linguist.set_language(args.language)
             if args.speaker:
-                linguist.set_speaker(args.speaker)
+                linguist.set_voice(args.speaker)
 
             # Generate speech from text
             linguist.speak(args.text or "Hello, World! You seeme to have forgotten to provide text to speak.", tag=args.tag)
 
         elif args.command == "listen":
 
-            # Record audio until 'q' key press
+            # Record audio until 'ENTER' key press
             audio = linguist.listen(tag=args.tag)
 
             # Transcribe the recorded audio file
@@ -72,7 +69,11 @@ def main():
 
         elif args.command == "transcribe":
             # Transcribe the provided audio file
-            text = linguist.transcribe(args.file_path, show_text=args.print, tag=args.tag)
+            text = linguist.transcribe(args.path, show_text=args.print, tag=args.tag)
+
+        elif args.command == "list":
+            # List all recorded audio samples
+            linguist.samples()
 
     else:
         # Show help message

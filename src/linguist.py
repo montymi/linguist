@@ -1,9 +1,9 @@
-from TTS.api import TTS
+from .packages.tts.controller import Controller as tts
 import shutil
 import subprocess
 import os
 import sys
-from microphone import Microphone
+from .microphone import Microphone
 from datetime import datetime
 import whisper
 import warnings
@@ -13,78 +13,38 @@ warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using F
 class Linguist:
     def __init__(
             self, 
-            coqui_model="tts_models/multilingual/multi-dataset/your_tts", 
-            use_gpu=False, 
-            output_file="output", 
-            archive="archive", 
-            whisper_model="base"
+            whisper_model="base",
+            output_file="output.wav",
+            archive="archive"
         ):
-        self.coqui_model = coqui_model
-        self.use_gpu = use_gpu
-        self.whisper_model = whisper_model
         self.default_output = output_file
-        self.language = None
-        self.speaker_file = None
-        self.speaker = None
         self.archive = archive
+        self.whisper_model = whisper_model
 
     def init(self, debug: bool=False):
+        if not os.path.exists(self.archive):
+            os.makedirs(self.archive)
+        # Set permissions on Windows
+        try:
+            os.chmod(self.archive, 0o777)
+        except Exception as e:
+            print(f"Warning: Could not set archive permissions: {e}")
         self.debug = debug
-        self.tts = self.__TTS__(debug)
+        self.tts = tts(debug=debug)
+        self.tts.load()
         self.mic = Microphone()
         self.whisper_model = whisper.load_model(self.whisper_model)
 
-    def __TTS__(self, debug):
-        if not debug:
-            sys.stdout = open(os.devnull, 'w')
-            sys.stderr = open(os.devnull, 'w')
-            tts = TTS(model_name=self.coqui_model, gpu=self.use_gpu, progress_bar=False)
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-        else:
-            tts = TTS(model_name=self.coqui_model, gpu=self.use_gpu, progress_bar=True)
-        return tts
+    def set_voice(self, voice: str):
+        self.tts.handle_set_voice(voice)
 
     def stamp(self):
-        return datetime.now().strftime("%Y-%m-%d@%H:%M:%S")
+        return datetime.now().strftime("%Y-%m-%d@%H%M%S")
+    
+    def samples(self):
+        self.mic.samples(self.archive)
 
-    def list_languages(self):
-        """List available languages for the TTS model."""
-        return self.tts.languages
-
-    def set_language(self, lang):
-        """Set the language for the TTS model."""
-        if lang in self.tts.languages:
-            self.language = lang
-            print(f"Language set to: {lang}")
-        else:
-            print(f"Error: Language '{lang}' is not supported.")
-
-    def list_speakers(self):
-        """List available speakers for the TTS model."""
-        return self.tts.speakers
-
-    def set_speaker(self, speaker_name):
-        """Set the speaker for the TTS model."""
-        # Clean and filter out empty speakers
-        speakers = [speaker.strip() for speaker in self.tts.speakers if speaker.strip()]
-        if speaker_name in speakers:
-            self.speaker = speaker_name
-            print(f"Speaker set to: {speaker_name}")
-        else:
-            print(f"Error: Speaker '{speaker_name}' is not available. Defaulting to first speaker.")
-            self.speaker = speakers[0] if speakers else None
-
-    def set_speaker_embedding(self, audio_path):
-        """Set the speaker embedding from a reference audio file."""
-
-        if not audio_path or not os.path.join(self.archive, audio_path):
-            print(f"Error: Invalid reference audio path: {audio_path}")
-            return
-        self.speaker_file = os.path.join(self.archive, audio_path)
-        print("Speaker embedding set successfully.")
-
-    def record(self, words: str, tag=None):
+    def generate(self, words: str, tag=None):
         """Generate speech from text with optional language and speaker embedding."""
         if not tag:
             tag = self.default_output
@@ -93,54 +53,15 @@ class Linguist:
         else:
             output_file = tag
         try:
-            if not self.debug:
-                sys.stdout = open(os.devnull, 'w')
-                sys.stderr = open(os.devnull, 'w')
-            if self.speaker_file:
-                self.tts.tts_to_file(
-                    text=words,
-                    file_path=output_file,
-                    speaker_wav=self.speaker_file,
-                    language=self.language,
-                )
-            else:
-                self.speaker = self.speaker or self.tts.speakers[1]
-                self.language = self.language or self.tts.languages[0]
-                
-                self.tts.tts_to_file(
-                    text=words,
-                    speaker=self.speaker,
-                    file_path=output_file,
-                    language=self.language,
-                )
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
+            self.tts.handle_generate_speech(words, output_file)
             print(f"📂 Speech saved to: {tag} ✅\n")
         except Exception as e:
             print(f"Error during recording: {e}")
-
-    def say(self, path=None):
-        """Play the generated audio using 'afplay'."""
-        if not path:
-            path = self.default_output
-        if not path.endswith(".wav"):
-            path = path + ".wav"
-        if not self._is_afplay_available():
-            print("Error: 'afplay' command is not available. Please install or use another player.")
-            return
-        try:
-            subprocess.run(["afplay", path], check=True)
-            self.speaker_file = None
-        except subprocess.CalledProcessError as e:
-            print(f"Error: Unable to play audio. Details: {e}")
-
-    @staticmethod
-    def _is_afplay_available():
-        """Check if 'afplay' is available on the system."""
-        return shutil.which("afplay") is not None
     
-    def speak(self, text: str, tag: str=None):
+    def speak(self, text: str, tag: str=None, voice: str=None):
         """Convert text to speech and play it."""
+        if voice:
+            self.set_voice(voice)
         try:
             if not tag:
                 tag = input("Name the recording (ENTER for datetime): ") or self.stamp()
@@ -148,8 +69,7 @@ class Linguist:
                 path = os.path.join(self.archive, tag + ".wav")
             else:
                 path = os.path.join(self.archive, tag)
-            self.record(text, path)
-            self.say(path)
+            self.generate(text, path)
         except KeyboardInterrupt:
             print("Speaker interrupted. Exiting...")
 
@@ -158,34 +78,52 @@ class Linguist:
         try:
             if not tag:
                 tag = input("Name the recording (ENTER for datetime): ") or self.stamp()
-            if not tag.endswith(".wav"):
-                name = os.path.join(self.archive, tag + ".wav")
-            else:
-                name = os.path.join(self.archive, tag)
+            
+            # Ensure proper Windows path handling
+            name = os.path.join(self.archive, f"{tag}.wav" if not tag.endswith(".wav") else tag)
+            name = os.path.normpath(name)  # Normalize path separators
+            
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(name), exist_ok=True)
+            
             self.mic.record(output_file=name)
+            return name
         except KeyboardInterrupt:
             print("Recording interrupted. Exiting...")
-        return name
+            return ""
+        except Exception as e:
+            print(f"Error during recording: {e}")
+            return ""
 
     def transcribe(self, file: str, show_text: bool, tag: str=None) -> str:
         """Transcribe recorded audio to text."""
         try:
-            if not os.path.exists(file):
-                raise FileNotFoundError(f"Audio file not found: {file}")
-            print("📝 Transcribing audio... Press Ctrl+C to stop. 🔊")
-            result = self.whisper_model.transcribe(file)
+            file_path = os.path.abspath(file)
+            if not os.path.exists(file_path):
+                raise FileNotFoundError(f"Audio file not found: {file_path}")
+                
+            print(f"📝 Transcribing audio from {file_path}... Press Ctrl+C to stop. 🔊")
+            result = self.whisper_model.transcribe(file_path)
             text = result["text"]
+            
             if text:
                 print(f"\n📜 Transcription successful ✅")
-            if show_text and text:
-                print(f"\n❝{text} ❞\n")
+                if show_text:
+                    print(f"\n❝{text} ❞\n")
+                    
             if tag:
                 if not tag.endswith(".txt"):
                     tag += ".txt"
-                with open(os.path.join(self.archive, tag), 'w') as f:
+                output_path = os.path.join(self.archive, tag)
+                with open(output_path, 'w', encoding='utf-8') as f:
                     f.write(text)
-                print(f"📂 Transcription saved to: {tag} ✅\n")
+                print(f"📂 Transcription saved to: {output_path} ✅\n")
+                
             return text
+            
+        except FileNotFoundError as e:
+            print(f"File error: {e}")
+            return ""
         except KeyboardInterrupt:
             print("Transcription interrupted. Exiting...")
             return ""

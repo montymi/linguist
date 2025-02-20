@@ -49,10 +49,41 @@ class Microphone:
             wf.setframerate(self.sample_rate)
             wf.writeframes(b''.join(frames))
 
-    def samples(self):
-        """List all recorded audio samples in the archive directory."""
-        print("Input Samples:")
-        [print(file) for file in os.listdir(self.archive)]
+    def samples(self, output_file: str):
+        """List all recorded audio samples in the archive directory, including additional audio quality info."""
+        if not os.path.isdir(output_file):
+            print("No directory found.")
+            return
+
+        print(f"Dumping contents of '{output_file}'")
+        print("=" * 72)
+        header_format = "{:<30} {:>10} {:>10} {:>8} {:>8}"
+        print(header_format.format("SAMPLES", "SIZE", "DURATION", "RATE", "BITS"))
+        print("=" * 72)
+
+        for file in sorted(os.listdir(output_file)):
+            if not file.lower().endswith(".wav"):
+                continue
+            file_path = os.path.join(output_file, file)
+            size_bytes = os.path.getsize(file_path)
+            size_mb = size_bytes / (1024 * 1024)
+            size_str = f"{size_mb:.2f} MB"
+            with wave.open(file_path, 'rb') as wf:
+                frames = wf.getnframes()
+                rate = wf.getframerate()
+                sample_width = wf.getsampwidth() * 8
+                duration = frames / float(rate)
+
+            if duration < 60:
+                duration_label = f"{duration:.2f}s"
+            elif duration < 3600:
+                duration_label = f"{(duration / 60):.2f}min"
+            else:
+                duration_label = f"{(duration / 3600):.2f}h"
+
+            print(f"{file:<30} {size_str:>10} {duration_label:>10} {rate:>8} {sample_width:>8}")
+        print("=" * 72)
+
 
     def __del__(self):
         """Ensure proper cleanup of resources."""

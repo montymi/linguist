@@ -1,0 +1,3 @@
+[submodule "src/packages/tts"]
+	path = src/packages/tts
+	url = git@github.com:montymi/tts.git
