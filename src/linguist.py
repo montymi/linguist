@@ -40,6 +40,9 @@ class Linguist:
 
     def stamp(self):
         return datetime.now().strftime("%Y-%m-%d@%H%M%S")
+    
+    def samples(self):
+        self.mic.samples(self.archive)
 
     def generate(self, words: str, tag=None):
         """Generate speech from text with optional language and speaker embedding."""

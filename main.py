@@ -31,13 +31,16 @@ def main():
     transcribe_parser.add_argument("--print", action="store_true", default=True, help="Flag to print the transcribed text")
     transcribe_parser.add_argument("--tag", type=str, help="Tag the transcribed audio file")
 
+    # Archive command
+    archive_parser = subparsers.add_parser("list", help="List all recorded audio samples")
+
     # Help command
     help_parser = subparsers.add_parser("help", help="Show help message")
     help_parser.set_defaults(func=lambda _: parser.print_help())
 
     args = parser.parse_args()
 
-    if args.command in ["speak", "listen", "transcribe"]:
+    if args.command in ["speak", "listen", "transcribe", "list"]:
         # Initialize Linguist with the provided arguments
         linguist = Linguist(
             output_file=args.output_file,
@@ -58,7 +61,7 @@ def main():
 
         elif args.command == "listen":
 
-            # Record audio until 'q' key press
+            # Record audio until 'ENTER' key press
             audio = linguist.listen(tag=args.tag)
 
             # Transcribe the recorded audio file
@@ -67,6 +70,10 @@ def main():
         elif args.command == "transcribe":
             # Transcribe the provided audio file
             text = linguist.transcribe(args.path, show_text=args.print, tag=args.tag)
+
+        elif args.command == "list":
+            # List all recorded audio samples
+            linguist.samples()
 
     else:
         # Show help message
