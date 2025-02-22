@@ -1,11 +1,14 @@
 import argparse
-from src.linguist import Linguist
+from src.controller import Controller
+from src.views.cli import CLIView
+from src.views.gui import GUIView
 import logging
 
 def main():
     # Debug command
     parser = argparse.ArgumentParser(description="CLI for TTS and STT using Linguist")
     # Configuration
+    parser.add_argument("--gui", action="store_true", help="Toggle GUI mode")
     parser.add_argument("--output_file", type=str, default="output.wav", help="Output file for TTS")
     parser.add_argument("--archive", type=str, default="archive", help="Archive directory for TTS")
     parser.add_argument("--whisper_model", type=str, default="base", help="Whisper model for STT")
@@ -40,43 +43,21 @@ def main():
 
     args = parser.parse_args()
 
-    if args.command in ["speak", "listen", "transcribe", "list"]:
-        # Initialize Linguist with the provided arguments
-        linguist = Linguist(
+    view = GUIView() if args.gui else CLIView()
+
+    lc = Controller(
+            view=view,
             output_file=args.output_file,
             archive=args.archive,
             whisper_model=args.whisper_model
         )
 
-        linguist.init(args.debug)
-
-        # Handle commands
-        if args.command == "speak":
-            # Set language and speaker if provided
-            if args.speaker:
-                linguist.set_voice(args.speaker)
-
-            # Generate speech from text
-            linguist.speak(args.text or "Hello, World! You seeme to have forgotten to provide text to speak.", tag=args.tag)
-
-        elif args.command == "listen":
-
-            # Record audio until 'ENTER' key press
-            audio = linguist.listen(tag=args.tag)
-
-            # Transcribe the recorded audio file
-            text = linguist.transcribe(audio, show_text=args.print)
-
-        elif args.command == "transcribe":
-            # Transcribe the provided audio file
-            text = linguist.transcribe(args.path, show_text=args.print, tag=args.tag)
-
-        elif args.command == "list":
-            # List all recorded audio samples
-            linguist.samples()
-
+    lc.init(args.debug)
+    if args.gui:
+        lc.start()
+    elif args.command in lc.services():
+        lc.execute(args.command, args)
     else:
-        # Show help message
         parser.print_help()
 
 if __name__ == '__main__':
