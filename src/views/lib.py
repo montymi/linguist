@@ -1,4 +1,4 @@
-from .abstract import AbstractView
+from views.abstract import AbstractView
 from typing import List, Any
 
 class NoView(AbstractView):

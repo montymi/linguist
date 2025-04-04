@@ -1,8 +1,9 @@
 import argparse
-from src.controller import Controller
-from src.views.cli import CLIView
-from src.views.gui import GUIView
-import logging
+import sys
+from pathlib import Path
+from controller import Controller
+from views.cli import CLIView
+from views.gui import GUIView
 
 def main():
     # Debug command
@@ -10,7 +11,7 @@ def main():
     # Configuration
     parser.add_argument("--gui", action="store_true", help="Toggle GUI mode")
     parser.add_argument("--output_file", type=str, default="output.wav", help="Output file for TTS")
-    parser.add_argument("--archive", type=str, default="archive", help="Archive directory for TTS")
+    parser.add_argument("--archive", type=str, default=None, help="Archive directory for TTS")
     parser.add_argument("--whisper_model", type=str, default="base", help="Whisper model for STT")
     parser.add_argument("--debug", action="store_true", help="Toggle debugging mode")
     
@@ -61,4 +62,5 @@ def main():
         parser.print_help()
 
 if __name__ == '__main__':
+    from linguist import main
     main()

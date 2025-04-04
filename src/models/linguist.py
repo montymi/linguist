@@ -3,8 +3,8 @@ import whisper
 import warnings
 from datetime import datetime
 
-from ..packages.tts.controller import Controller as tts
-from .microphone import Microphone, AudioInfo
+from packages.tts.controller import Controller as tts
+from models.microphone import Microphone, AudioInfo
 
 warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead") # Ignore FP16 warning because it defaults to FP32
 
@@ -62,6 +62,7 @@ class Linguist:
         else:
             path = os.path.join(self.archive, tag)
         self.generate(text, path)
+        return path
 
     def transcribe(self, file: str, tag: str=None) -> str:
         """Transcribe recorded audio to text."""
