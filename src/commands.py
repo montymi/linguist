@@ -7,9 +7,9 @@ from typing import Optional, Dict
 from dataclasses import dataclass
 from wave import Error as WaveError
 
-from .models.linguist import Linguist
-from .models.microphone import AudioInfo
-from .views.abstract import AbstractView
+from models.linguist import Linguist
+from models.microphone import AudioInfo
+from views.abstract import AbstractView
 
 @dataclass
 class CommandSession:       

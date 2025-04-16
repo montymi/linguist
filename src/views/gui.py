@@ -1,7 +1,7 @@
 from prompt_toolkit import HTML
 from prompt_toolkit.shortcuts import button_dialog, input_dialog, message_dialog
 from prompt_toolkit.styles import Style
-from .abstract import AbstractView
+from views.abstract import AbstractView
 from typing import List, Any
 import os
 

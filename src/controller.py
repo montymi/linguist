@@ -1,7 +1,9 @@
-from .models.linguist import Linguist
-from .commands import get_commands
-from .views.abstract import AbstractView
-from .views.lib import NoView
+from models.linguist import Linguist
+from commands import get_commands
+from views.abstract import AbstractView
+from views.lib import NoView
+from pathlib import Path
+import os
 
 class Controller:
     def __init__(
@@ -9,8 +11,11 @@ class Controller:
             view: AbstractView = NoView(),
             whisper_model="base",
             output_file="output.wav",
-            archive="archive",
+            archive=None,
         ):
+        if archive is None:
+            archive = str(Path(os.path.expanduser("~/Downloads")))
+            
         self.linguist = Linguist(
             output_file=output_file,
             archive=archive,
