@@ -2,7 +2,6 @@ import argparse
 from src.controller import Controller
 from src.views.cli import CLIView
 from src.views.gui import GUIView
-import logging
 
 def main():
     # Debug command
@@ -27,6 +26,7 @@ def main():
     listen_parser = subparsers.add_parser("listen", help="Convert speech to text")
     listen_parser.add_argument("--print", action="store_true", default=True, help="Flag to print the recognized text")
     listen_parser.add_argument("--tag", type=str, help="Tag the recorded audio file")
+    listen_parser.add_argument("--duration", type=int, default=None, help="Recording duration in seconds (auto-stops)")
 
     # Transcribe command
     transcribe_parser = subparsers.add_parser("transcribe", help="Transcribe audio file to text")

@@ -1,73 +1,94 @@
 import os
-import whisper
-import warnings
 from datetime import datetime
 
-from ..packages.tts.controller import Controller as tts
-from .microphone import Microphone, AudioInfo
+import pyttsx3
+import soundfile as sf
+from faster_whisper import WhisperModel
 
-warnings.filterwarnings("ignore", message="FP16 is not supported on CPU; using FP32 instead") # Ignore FP16 warning because it defaults to FP32
+from .microphone import Microphone, AudioInfo
+from ..errors import ModelLoadError, SynthesisError, TranscriptionError
+
 
 class Linguist:
     def __init__(
-            self, 
+            self,
             whisper_model="base",
             output_file="output.wav",
             archive="archive"
         ):
         self.default_output = output_file
         self.archive = archive
-        self.whisper_model = whisper_model
+        self.whisper_model_size = whisper_model
 
     def init(self, debug: bool=False):
         if not os.path.exists(self.archive):
             os.makedirs(self.archive)
-        # Set permissions on Windows
         try:
             os.chmod(self.archive, 0o777)
         except PermissionError as e:
-            raise (f"Warning: Could not set archive permissions: {e}")
+            raise PermissionError(f"Could not set archive permissions: {e}") from e
         self.debug = debug
-        self.tts = tts(debug=debug)
-        self.tts.load()
+        try:
+            self.tts_engine = pyttsx3.init()
+        except (RuntimeError, OSError) as e:
+            raise ModelLoadError(f"Failed to initialize TTS engine: {e}") from e
         self.mic: Microphone = Microphone()
-        self.whisper_model = whisper.load_model(self.whisper_model)
+        try:
+            self.stt_model = WhisperModel(self.whisper_model_size, device="cpu", compute_type="int8")
+        except (RuntimeError, OSError, ValueError) as e:
+            raise ModelLoadError(f"Failed to load Whisper model: {e}") from e
 
     def set_voice(self, voice: str):
-        self.tts.handle_set_voice(voice)
+        voices = self.tts_engine.getProperty('voices')
+        for v in voices:
+            if voice.lower() in v.id.lower() or voice.lower() in v.name.lower():
+                self.tts_engine.setProperty('voice', v.id)
+                return
+        if voices:
+            self.tts_engine.setProperty('voice', voices[0].id)
 
     def stamp(self):
         return datetime.now().strftime("%Y-%m-%d@%H%M%S")
-    
+
     def samples(self) -> AudioInfo:
         """List all recorded audio samples with formatted output."""
         return self.mic.samples(self.archive)
 
-    def generate(self, words: str, tag=None):
-        """Generate speech from text with optional language and speaker embedding."""
-        if not tag:
-            tag = self.default_output
-        if not tag.endswith(".wav"):
-            output_file = tag + ".wav"
-        else:
-            output_file = tag
-        self.tts.handle_generate_speech(words, output_file)
-    
     def speak(self, text: str, tag: str=None, voice: str=None):
-        """Convert text to speech and play it."""
+        """Convert text to speech and save to file."""
         if voice:
             self.set_voice(voice)
+        if not tag:
+            tag = self.default_output
         if not tag.endswith(".wav"):
             path = os.path.join(self.archive, tag + ".wav")
         else:
             path = os.path.join(self.archive, tag)
-        self.generate(text, path)
+        tmp_path = path + ".aiff"
+        try:
+            self.tts_engine.save_to_file(text, tmp_path)
+            self.tts_engine.runAndWait()
+            self._aiff_to_wav(tmp_path, path)
+        except (RuntimeError, OSError) as e:
+            raise SynthesisError(f"Speech synthesis failed: {e}") from e
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        return path
+
+    @staticmethod
+    def _aiff_to_wav(aiff_path: str, wav_path: str):
+        data, samplerate = sf.read(aiff_path)
+        sf.write(wav_path, data, samplerate)
 
     def transcribe(self, file: str, tag: str=None) -> str:
         """Transcribe recorded audio to text."""
-        result = self.whisper_model.transcribe(file)
-        text = result["text"]
-                    
+        try:
+            segments, _ = self.stt_model.transcribe(file)
+            text = " ".join(seg.text for seg in segments).strip()
+        except (RuntimeError, OSError, ValueError) as e:
+            raise TranscriptionError(f"Transcription failed for {file}: {e}") from e
+
         if tag:
             if not tag.endswith(".txt"):
                 tag += ".txt"
@@ -77,15 +98,3 @@ class Linguist:
             tag = output_path
 
         return text, tag
-
-
-# if __name__ == '__main__':
-#     try:
-#         main()
-#     except KeyboardInterrupt:
-#         selection = input("\nAborted session. Would you like to restart? (y/N): ")
-#         if selection.lower() not in ['y', 'yes']:
-#             print("Exiting program.")
-#             exit()   
-#         print("Restarting Linguist and Microphone")
-#         main()

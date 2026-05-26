@@ -2,6 +2,7 @@ from .models.linguist import Linguist
 from .commands import get_commands
 from .views.abstract import AbstractView
 from .views.lib import NoView
+from .errors import LinguistError
 
 class Controller:
     def __init__(
@@ -17,6 +18,7 @@ class Controller:
             whisper_model=whisper_model
         )
         self.view = view
+        self.commands = {}
 
     def __getattr__(self, name: str) -> callable:
         """Dynamically handle command calls as methods."""
@@ -31,8 +33,8 @@ class Controller:
         try:
             self.linguist.init(debug)
             self.commands = get_commands(self.view)
-        except PermissionError and TypeError as e:
-            self.view.throw(f"Error: {e}")
+        except (PermissionError, TypeError, LinguistError) as e:
+            self.view.throw("init", e)
             return
         
     def execute(self, command_name: str, args: dict):

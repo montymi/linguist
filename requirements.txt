@@ -1,22 +1,12 @@
-# TTS replaced by @packages/tts
-openai-whisper
-keyboard
-pyaudio
-ffmpeg-python
-ffmpeg
+# TTS
+pyttsx3
 
-## @packages/tts
-kokoro  # Official Kokoro TTS library
-misaki  # G2P library for Kokoro
-torch  # PyTorch for model inference
-soundfile  # Audio file handling
-huggingface-hub  # Model downloads
-gradio  # Web interface
-pydub  # For audio format conversion
-espeakng-loader  # For loading espeak-ng library
-phonemizer-fork  # For phoneme generation
-wheel  # For building packages
-setuptools  # For installing packages
-num2words  # For number to word conversion
-prompt_toolkit  # For CLI text processing
-sounddevice # For light audio playback
+# STT
+faster-whisper
+
+# Audio
+pyaudio
+soundfile
+
+# CLI
+prompt_toolkit

@@ -80,8 +80,8 @@ class Microphone:
                 
             return audio_files
             
-        except FileNotFoundError or wave.Error or PermissionError as e:
-            raise (f"Error reading audio files: {e}")
+        except (FileNotFoundError, wave.Error, PermissionError) as e:
+            raise OSError(f"Error reading audio files: {e}") from e
 
 
     def __del__(self):
