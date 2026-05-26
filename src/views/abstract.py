@@ -51,8 +51,11 @@ class AbstractView(ABC):
         pass
     
     @abstractmethod
-    def get_tag(self) -> None:
-        """Get a tag for the current operation."""
+    def warn(self, message: str) -> None:
+        pass
+
+    @abstractmethod
+    def get_tag(self) -> str:
         pass
     
     def stamp(self) -> str:

@@ -5,7 +5,7 @@ import pyttsx3
 import soundfile as sf
 from faster_whisper import WhisperModel
 
-from .microphone import Microphone, AudioInfo
+from .microphone import Microphone, AudioMeta
 from ..errors import ModelLoadError, SynthesisError, TranscriptionError
 
 
@@ -24,14 +24,16 @@ class Linguist:
         if not os.path.exists(self.archive):
             os.makedirs(self.archive)
         try:
-            os.chmod(self.archive, 0o777)
+            os.chmod(self.archive, 0o755)
         except PermissionError as e:
-            raise PermissionError(f"Could not set archive permissions: {e}") from e
+            raise ModelLoadError(f"Could not set archive permissions: {e}") from e
         self.debug = debug
         try:
             self.tts_engine = pyttsx3.init()
         except (RuntimeError, OSError) as e:
             raise ModelLoadError(f"Failed to initialize TTS engine: {e}") from e
+        self.set_voice("Samantha")
+        self.tts_engine.setProperty('rate', 230)
         self.mic: Microphone = Microphone()
         try:
             self.stt_model = WhisperModel(self.whisper_model_size, device="cpu", compute_type="int8")
@@ -50,8 +52,7 @@ class Linguist:
     def stamp(self):
         return datetime.now().strftime("%Y-%m-%d@%H%M%S")
 
-    def samples(self) -> AudioInfo:
-        """List all recorded audio samples with formatted output."""
+    def samples(self) -> list:
         return self.mic.samples(self.archive)
 
     def speak(self, text: str, tag: str=None, voice: str=None):
@@ -81,7 +82,7 @@ class Linguist:
         data, samplerate = sf.read(aiff_path)
         sf.write(wav_path, data, samplerate)
 
-    def transcribe(self, file: str, tag: str=None) -> str:
+    def transcribe(self, file: str, tag: str=None) -> tuple[str, str]:
         """Transcribe recorded audio to text."""
         try:
             segments, _ = self.stt_model.transcribe(file)
@@ -98,3 +99,10 @@ class Linguist:
             tag = output_path
 
         return text, tag
+
+    def close(self):
+        if hasattr(self, 'mic'):
+            self.mic.close()
+        if hasattr(self, 'tts_engine'):
+            self.tts_engine.stop()
+        self.stt_model = None

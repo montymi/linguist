@@ -1,29 +1,24 @@
 from abc import ABC, abstractmethod
-import inspect
 import os
 from typing import Dict
 from wave import Error as WaveError
 
 from .models.linguist import Linguist
-from .models.microphone import AudioInfo
+from .models.microphone import AudioMeta
 from .views.abstract import AbstractView
 from .errors import SynthesisError, TranscriptionError
 from threading import Event, Thread
 
 
-def get_commands(view: AbstractView):
-    """Dynamically get all command classes defined in this module"""
+def get_commands(view: AbstractView) -> Dict[str, "command"]:
     if not isinstance(view, AbstractView):
         raise TypeError("View must be an instance of AbstractView")
-
-    commands: Dict[str, command] = {}
-    for _, cls in inspect.getmembers(
-        __import__(__name__, fromlist=[""]), inspect.isclass
-    ):
-        if issubclass(cls, command) and cls != command:
-            instance = cls(view)
-            commands[instance.name] = instance
-    return commands
+    return {
+        "list": list_samples(view),
+        "speak": speak(view),
+        "listen": listen(view),
+        "transcribe": transcribe(view),
+    }
 
 
 class command(ABC):
@@ -32,7 +27,6 @@ class command(ABC):
 
     @abstractmethod
     def execute(self, args, linguist: Linguist):
-        """Execute a command using given args and a Linguist instance."""
         pass
 
     @property
@@ -40,23 +34,17 @@ class command(ABC):
         return self.__class__.__name__
 
 
-class list(command):
+class list_samples(command):
     def __init__(self, view: AbstractView):
         super().__init__(view)
 
     def execute(self, args, linguist):
-        headers = [field.name for field in AudioInfo]
+        headers = list(AudioMeta._fields)
         self.view.samples_header(headers)
         try:
             audio_meta = linguist.samples()
             self.view.samples_content(audio_meta)
-        except FileNotFoundError as e:
-            self.view.throw(self.name, e)
-        except WaveError as e:
-            self.view.throw(self.name, e)
-        except PermissionError as e:
-            self.view.throw(self.name, e)
-        except OSError as e:
+        except (FileNotFoundError, WaveError, PermissionError, OSError) as e:
             self.view.throw(self.name, e)
 
     @property
@@ -90,6 +78,8 @@ class speak(command):
 
 
 class listen(command):
+    JOIN_TIMEOUT = 5
+
     def __init__(self, view: AbstractView):
         super().__init__(view)
         self.recording_thread = None
@@ -127,13 +117,7 @@ class listen(command):
         except KeyboardInterrupt:
             self.view.interrupt(self.name)
             return ""
-        except FileNotFoundError as e:
-            self.view.throw(self.name, e)
-            return ""
-        except PermissionError as e:
-            self.view.throw(self.name, e)
-            return ""
-        except WaveError as e:
+        except (FileNotFoundError, PermissionError, WaveError) as e:
             self.view.throw(self.name, e)
             return ""
 
@@ -147,7 +131,9 @@ class listen(command):
     def stop_recording(self):
         if self.recording_thread and self.recording_thread.is_alive():
             self.stop_event.set()
-            self.recording_thread.join()
+            self.recording_thread.join(timeout=self.JOIN_TIMEOUT)
+            if self.recording_thread.is_alive():
+                self.view.warn("Recording thread did not stop cleanly")
 
     @property
     def name(self):

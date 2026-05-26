@@ -51,6 +51,9 @@ class CLIView(AbstractView):
     
     def throw(self, command: str, error: Exception) -> None:
         print(f"❌ Error in {command}: {error}")
-    
+
+    def warn(self, message: str) -> None:
+        print(f"⚠️  {message}")
+
     def get_tag(self) -> str:
         return input("Name the recording (ENTER for datetime): ")

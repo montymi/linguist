@@ -1,16 +1,10 @@
 import os
 import wave
 import pyaudio
-from enum import Enum
 from threading import Event
 from collections import namedtuple
 
-class AudioInfo(Enum):
-    FILE = 'file'
-    SIZE_BYTES = 'size_bytes'
-    DURATION = 'duration'
-    RATE = 'rate'
-    SAMPLE_WIDTH = 'sample_width'
+AudioMeta = namedtuple("AudioMeta", ["file", "bytes", "duration", "rate", "width"])
 
 
 class Microphone:
@@ -24,8 +18,6 @@ class Microphone:
         self.recording_thread = None
 
     def record(self, output_file: str, stop_event: Event):
-        """Start recording audio to a file until the stop_event is set."""
-        """Records audio until the stop_event is set."""
         stream = self.p.open(format=self.format,
                              channels=self.channels,
                              rate=self.sample_rate,
@@ -53,7 +45,6 @@ class Microphone:
         if not os.path.isdir(output_file):
             raise FileNotFoundError(f"'{output_file}' does not exist.")
 
-        AudioMeta = namedtuple("AudioMeta", ["file", "bytes", "duration", "rate", "width"])
         audio_files = []
 
         try:
@@ -84,6 +75,5 @@ class Microphone:
             raise OSError(f"Error reading audio files: {e}") from e
 
 
-    def __del__(self):
-        """Ensure proper cleanup of resources."""
+    def close(self):
         self.p.terminate()

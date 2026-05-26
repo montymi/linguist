@@ -111,6 +111,13 @@ class GUIView(AbstractView):
             style=self.style
         ).run()
 
+    def warn(self, message: str) -> None:
+        message_dialog(
+            title="Warning",
+            text=f"⚠️  {message}",
+            style=self.style
+        ).run()
+
     def get_tag(self) -> str:
         result = input_dialog(
             title="Tag Recording",

@@ -52,13 +52,18 @@ def main():
             whisper_model=args.whisper_model
         )
 
-    lc.init(args.debug)
-    if args.gui:
-        lc.start()
-    elif args.command in lc.services():
-        lc.execute(args.command, args)
-    else:
-        parser.print_help()
+    if not lc.init(args.debug):
+        return
+
+    try:
+        if args.gui:
+            lc.start()
+        elif args.command in lc.services():
+            lc.execute(args.command, args)
+        else:
+            parser.print_help()
+    finally:
+        lc.close()
 
 if __name__ == '__main__':
     main()

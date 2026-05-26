@@ -30,7 +30,10 @@ class NoView(AbstractView):
     
     def throw(self, command: str, error: Exception) -> None:
         pass
-    
+
+    def warn(self, message: str) -> None:
+        pass
+
     def get_tag(self) -> str:
         """Returns empty string instead of prompting for input"""
         return ""
